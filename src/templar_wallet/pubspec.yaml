@@ -1,0 +1,72 @@
+name: templar_wallet
+description: Templar Wallet — Bitcoin and Liquid Network desktop wallet with Miniscript custody.
+publish_to: 'none'
+
+version: 0.1.0+16
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Navigation
+  go_router: ^15.0.0
+
+  # QR code display
+  qr_flutter: ^4.1.0
+
+  # QR code scanning via camera (PSBT import) — supports macOS
+  mobile_scanner: ^7.0.0
+
+  # State management (lightweight ChangeNotifier wiring)
+  provider: ^6.1.2
+
+  # Typography — IBM Plex Sans + Nunito + IBM Plex Mono via Google Fonts
+  google_fonts: ^6.2.1
+
+  # HTTP client for Blockstream explorer API
+  http: ^1.2.2
+
+  # SHA-256: HWI download verification, wallet customization keys
+  crypto: ^3.0.3
+
+  # tar.gz / zip extraction (HWI auto-installer)
+  archive: ^3.6.1
+
+  # Persistent key-value store (hidden tokens, issued asset map)
+  shared_preferences: ^2.3.2
+
+  # Native FFI
+  ffi: ^2.1.3
+  url_launcher: ^6.3.2
+  path_provider: ^2.1.5
+
+  # Native save/open dialogs (GTK on Linux, NSSavePanel on macOS, IFileDialog
+  # on Windows) — the desktop-portable way to write user-visible files.
+  file_selector: ^1.0.3
+  app_links: ^7.2.1
+  # Vendored, Android-only copy (see packages/biometric_storage/pubspec.yaml).
+  biometric_storage:
+    path: packages/biometric_storage
+  share_plus: ^12.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Drives the real app for the documentation screenshots
+  # (integration_test/screenshots_test.dart).
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    # HWI udev rules, installed on Linux so a non-root user can reach the
+    # device. Bundled (not downloaded) so the fix works offline — see
+    # assets/udev/README.md.
+    - assets/udev/

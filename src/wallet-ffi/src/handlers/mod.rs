@@ -1,0 +1,10 @@
+pub mod backup;
+pub mod bitcoin;
+pub mod history;
+pub mod hw;
+pub mod liquid;
+pub mod peg;
+pub mod registry;
+pub mod swaps;
+pub mod vault;
+pub mod wallet_ops;

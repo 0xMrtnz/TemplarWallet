@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "kind": "sign",
+  "id": "req_fixture_1",
+  "site": "Templar Protocol fixture",
+  "network": "liquid-testnet",
+  "nonce": "fixture-nonce-sign",
+  "action": "origination",
+  "loan_ref": "SQ-42",
+  "summary": {
+    "role": "borrower",
+    "lines": [
+      { "label": "You receive", "amount": "10,000 tUSDt" },
+      { "label": "Collateral locked", "amount": "0.01000000 tLBTC" },
+      { "label": "Origination fee", "amount": "500 sat tLBTC" },
+      { "label": "Term", "amount": "4,320 blocks (≈ 3 days)" }
+    ]
+  },
+  "pset": "cHNldP8BAgQCAAAAAQQBAQEFAQIB+wQCAAAAAAEBTgFJmoGFRfa645/AO2N/Kk4eZOWQysG8Om9tcapEQ2VMFAEAAAAAAA9CQAAiACCgE5MA82qHuUPx4nzHNwjxWCSc8+rg4rQ5CNB5Vs74AAEFclIhAhdnH707KagoCN5XkC2n+EOOzDitCmvJT01Ihb6KrdQaIQNjxKZ9muqLcb6BIp5cvl1jHmT6QMHHAlKIgyIYaGd7QlKuc2QhA2PEpn2a6otxvoEinly+XWMeZPpAwccCUoiDIhhoZ3tCrQOg8BmxaCIGAhdnH707KagoCN5XkC2n+EOOzDitCmvJT01Ihb6KrdQaGHPF2gpJCACAAQAAgAAAAIAAAAAABwAAACIGA2PEpn2a6otxvoEinly+XWMeZPpAwccCUoiDIhhoZ3tCGD9jWmNJCACAAQAAgAAAAIAAAAAABwAAAAEOICIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiAQ8EAAAAAAf8BHBzZXQRCEBCDwAAAAAAB/wEcHNldBMgSZqBhUX2uuOfwDtjfypOHmTlkMrBvDpvbXGqRENlTBQAAQMITEAPAAAAAAAH/ARwc2V0AiBJmoGFRfa645/AO2N/Kk4eZOWQysG8Om9tcapEQ2VMFAEEFgAUAQIDBAUGBwgJCgsMDQ4PEBESExQAAQMI9AEAAAAAAAAH/ARwc2V0AiBJmoGFRfa645/AO2N/Kk4eZOWQysG8Om9tcapEQ2VMFAEEAAA=",
+  "escrow": {
+    "descriptor": "ct(slip77(1111111111111111111111111111111111111111111111111111111111111111),elwsh(or_d(multi(2,[73c5da0a/2121h/1h/0h]tpub…/<0;1>/*,[3f635a63/2121h/1h/0h]tpub…/<0;1>/*),and_v(v:pk([3f635a63/2121h/1h/0h]tpub…/<0;1>/*),after(1700000)))))",
+    "address": "(fixture — escrow deposit at index 7 of the descriptor above)"
+  },
+  "callback": "http://127.0.0.1:8765/callback/sign",
+  "expires_at": 4102444800
+}

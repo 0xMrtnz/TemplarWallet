@@ -1,0 +1,32 @@
+[workspace]
+members = [
+    "crates/templar-core",
+    "src/wallet-ffi",
+]
+resolver = "2"
+
+# Cargo ignores [profile.*] in member manifests (wallet-ffi carried one that
+# never applied) — profiles are only honored here at the workspace root.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# wallet-ffi's panic containment (catch_unwind at the C boundary) requires
+# unwinding; panic="abort" would silently turn any Rust panic into a full
+# app crash. Pin it so a future edit can't defeat the safety net.
+panic = "unwind"
+
+# Debug builds (the Android debug APK included) keep the memory-hard KDF and
+# the AEAD at full speed: an unoptimised Argon2id at 256 MiB takes many
+# seconds and would misreport the vault as slow. Only these crates are
+# affected; the rest of a dev build stays fast to compile.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
+[profile.dev.package.chacha20poly1305]
+opt-level = 3
+[profile.dev.package.chacha20]
+opt-level = 3
+[profile.dev.package.poly1305]
+opt-level = 3

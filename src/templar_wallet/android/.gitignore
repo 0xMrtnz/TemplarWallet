@@ -1,0 +1,21 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# The release signing key and its passwords never enter the repository: CI
+# gets them from secrets, a local build from key.properties or TEMPLAR_*
+# variables (app/build.gradle.kts, docs/build/RELEASE.md).
+key.properties
+**/*.keystore
+**/*.jks
+**/*.p12
+# Rust build products (cargo ndk output); rebuilt by the CI / build script.
+/app/src/main/jniLibs/
+
+# Kotlin compiler session cache
+.kotlin/

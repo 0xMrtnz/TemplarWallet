@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 29+: no system scrim over the transparent bars — the app keeps
+         its own contrast (SafeArea, glass bar). windowLayoutInDisplayCutoutMode
+         is inherited from values-v27. -->
+    <style name="LaunchTheme" parent="BaseLaunchTheme">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+    <style name="NormalTheme" parent="BaseNormalTheme">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+</resources>

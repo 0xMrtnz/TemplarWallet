@@ -1,0 +1,46 @@
+Templar Wallet (testnet only)
+
+BEFORE YOU INSTALL
+
+This build is for the Bitcoin and Liquid TEST networks. It has no mainnet
+spending path at all: coins handled here have no value, and no real funds can
+be sent from it. Do not treat it as a wallet for savings.
+
+WHAT GETS INSTALLED
+
+  * Templar Wallet (templar_wallet.exe) and the libraries it needs, in the
+    folder you choose on the next pages.
+  * Start-menu shortcuts. A desktop icon only if you tick the box.
+
+Nothing is installed as a service, nothing starts with Windows, and no driver
+is added. A hardware wallet (Ledger, Jade) is reached over USB with the driver
+Windows already provides.
+
+WHERE YOUR WALLETS ARE KEPT
+
+  %APPDATA%\templar_wallet  (the default; the next pages let you choose)
+
+Wallet data lives there, NOT in the install folder, and uninstalling Templar
+Wallet leaves it untouched. Back that folder up if you want to keep a wallet
+across machines - though the recovery phrase you write down at setup is the
+backup that actually matters.
+
+APP PASSWORD
+
+A wallet whose recovery phrase is stored on this computer requires an app
+password: storage is encrypted at rest (Argon2id + XChaCha20-Poly1305) and the
+password is asked for at every start. Nobody can reset it for you - if it is
+lost, the recovery phrase is the only way back to the coins.
+
+INTERNET ACCESS
+
+The app connects to Blockstream's public testnet Electrum servers over TLS. No
+account and no API key is needed. It works offline too: opening a wallet,
+reading addresses and building a transaction never require the network - only
+syncing and broadcasting do.
+
+SMARTSCREEN
+
+This build is not code-signed yet, so Windows may show "Windows protected your
+PC". Choose More info -> Run anyway if you trust the source you downloaded it
+from.

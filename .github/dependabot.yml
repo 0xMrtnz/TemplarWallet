@@ -1,0 +1,12 @@
+# Keeps the workflows' action pins current. Every action is pinned to a full
+# commit SHA; Dependabot bumps the SHA and its version comment together, as a
+# pull request that ci.yml checks like any other.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

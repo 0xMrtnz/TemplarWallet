@@ -1,0 +1,27 @@
+# Build output
+/target
+**/build/
+# ...but docs/build holds the build guides, not output
+!/docs/build/
+**/.dart_tool/
+
+# Local toolchains — regenerate with scripts/setup_hwi_macos.sh
+/venv
+/.hwi-venv
+
+# Distributables
+/dist/
+
+.DS_Store
+
+# Python helper caches (scripts/)
+__pycache__/
+
+# Local agent tooling (CLAUDE.md is the shared brief and stays tracked)
+.claude/
+
+# Signing material never enters the repository
+*.jks
+*.keystore
+*.p12
+key.properties

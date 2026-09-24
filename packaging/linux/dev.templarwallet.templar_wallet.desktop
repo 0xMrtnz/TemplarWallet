@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Templar Wallet
+Comment=Bitcoin and Liquid wallet with Miniscript custody (test networks only)
+# %u: a templar:// link from a Templar Protocol site is passed as the only argument;
+# the running instance receives it (linux/runner/my_application.cc).
+Exec=templar_wallet %u
+Icon=templar_wallet
+Terminal=false
+Categories=Finance;Network;
+MimeType=x-scheme-handler/templar;
+StartupNotify=true
+StartupWMClass=templar_wallet

@@ -1,0 +1,97 @@
+[package]
+name = "templar-core"
+version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/0xMrtnz/TemplarWallet"
+publish = false
+edition = "2021"
+
+[dependencies]
+# NOTE: "hardware-signer" feature removed — it pulls rust-hwi → pyo3 → a build-time
+# Python interpreter dependency we don't need. Hardware signing in this app goes through
+# templar-core's CLI-based hardware.rs (shells out to the `hwi` binary), not bdk's HWISigner.
+bdk        = { version = "0.30", features = ["all-keys", "electrum", "sled"] }
+serde      = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror  = "1.0"
+getrandom  = "0.2"
+sled       = "0.34"
+base64     = "0.22"
+ur         = "0.4"
+ciborium   = "0.2"
+hex        = "0.4"
+bs58       = { version = "0.5", features = ["check"] }
+dirs-next  = "2.0"
+reqwest    = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+
+# Native USB device access, in-process — the path that replaces the `hwi`
+# subprocess. The macOS App Sandbox refuses to exec a downloaded binary at all,
+# and hangs one shipped inside the bundle, so talking to devices from our own
+# process is the only design that can work there. `hidapi` covers Ledger and the
+# other HID signers (IOHIDManager on macOS, hidraw on Linux, native HID on
+# Windows); `serialport` covers Jade, which is a USB-CDC device.
+hidapi     = { version = "2.6", optional = true }
+serialport = { version = "4.9", optional = true }
+
+# Ledger's own Bitcoin-app client: APDU command building, the merkleized-PSBT
+# protocol and signature parsing. Only the 64-byte HID framing around it is
+# ours (`device/hid.rs`) — that layer is a dozen lines of packet assembly,
+# whereas the protocol above it is exactly the part no wallet should re-derive
+# by hand. `ledger-transport-hid` is deliberately NOT used: it pins hidapi's
+# `linux-static-hidraw` feature, which would change the HID backend for the
+# whole workspace on Linux.
+ledger_bitcoin_client = { version = "0.6", default-features = false, features = ["paranoid_client"], optional = true }
+# Speaks the same `bitcoin` version as ledger_bitcoin_client (0.32) — the
+# workspace already builds both 0.30 (BDK) and 0.32 (Elements), and the two
+# never meet: this module's boundary is base64 PSBTs and descriptor strings.
+bitcoin_032 = { package = "bitcoin", version = "0.32", optional = true }
+# Jade's Bitcoin dialect rides on lwk_jade's serial transport through its
+# `generic()` escape hatch, which takes raw CBOR.
+serde_cbor = { version = "0.11", optional = true }
+
+# At-rest encryption (C1): Argon2id KDF + XChaCha20-Poly1305 AEAD, secret zeroization.
+# All pure-Rust — no system/Python build deps. `serde` lets `Zeroizing<String>`
+# sit directly in (de)serialized request/response types, so a mnemonic or
+# passphrase copy that serde produces is wiped when it drops.
+argon2           = "0.5"
+chacha20poly1305 = "0.10"
+zeroize          = { version = "1", features = ["derive", "serde"] }
+
+# Liquid Wallet Kit (LWK)
+lwk_wollet  = "0.9"
+# default-features off: its `jade` default would drag lwk_jade (and the
+# docker-based test_emulator infra) into every build, hardware or not. Only
+# `SwSigner` is used here; the Jade transport is wired under `hardware`.
+lwk_signer  = { version = "0.9", default-features = false }
+lwk_common  = "0.9"
+# Blockstream Jade over USB serial. Jade is the only hardware wallet with
+# Liquid in firmware, and this is Blockstream's own protocol implementation —
+# hand-rolling the CBOR dialect for a signing device would be reckless.
+# default-features off: they pull docker-based test infrastructure.
+lwk_jade    = { version = "0.9", default-features = false, features = ["serial"], optional = true }
+
+# LiquiDEX engine: raw Electrum calls (prevout fetch / unspent checks) and
+# blinding-factor sampling. Same electrum-client build LWK already uses
+# (rustls, no openssl) — both crates are already in Cargo.lock.
+electrum-client = { version = "0.21", default-features = false, features = ["use-rustls-ring", "proxy"] }
+rand            = "0.8"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["hardware"]
+# USB hardware wallets: Ledger and the other HID signers (hidapi), Jade over
+# serial (serialport, lwk_jade), Ledger's Bitcoin-app client and the CBOR
+# dialect. None of it runs on stock Android — that build uses
+# `--no-default-features`, which drops the whole transport stack (and its C
+# deps) from the graph. QR air-gap signing is pure Rust and stays everywhere.
+hardware = [
+    "dep:hidapi",
+    "dep:serialport",
+    "dep:ledger_bitcoin_client",
+    "dep:bitcoin_032",
+    "dep:serde_cbor",
+    "dep:lwk_jade",
+    "lwk_jade/sync",
+]

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand ground colours (see lib/theme/app_colors.dart). Keep in sync. -->
+    <!-- Splash ground: pure black in both modes — the launch is a brand moment. -->
+    <color name="splash_background">#FF000000</color>
+    <!-- Circle the Android 12+ splash draws behind the cross: the badge's
+         squircle dark, not the system's white. -->
+    <color name="splash_icon_background">#FF170E10</color>
+    <!-- Window ground behind the Flutter view: light theme value; overridden
+         in values-night/colors.xml. -->
+    <color name="window_background">#FFF1F3F6</color>
+</resources>

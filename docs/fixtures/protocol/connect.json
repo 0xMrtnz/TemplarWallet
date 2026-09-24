@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "kind": "connect",
+  "site": "Templar Protocol fixture",
+  "network": "liquid-testnet",
+  "nonce": "fixture-nonce-connect",
+  "callback": "http://127.0.0.1:8765/callback/connect",
+  "expires_at": 4102444800
+}

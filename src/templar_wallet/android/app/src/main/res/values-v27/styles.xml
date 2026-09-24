@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 27+: let the window extend under a display cutout (notch / punch
+         hole) so edge-to-edge content is not letterboxed by a black bar. The
+         Flutter shell handles insets with SafeArea; fitsSystemWindows is
+         deliberately not set. -->
+    <style name="LaunchTheme" parent="BaseLaunchTheme">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <style name="NormalTheme" parent="BaseNormalTheme">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

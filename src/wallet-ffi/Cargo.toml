@@ -1,0 +1,31 @@
+[package]
+name = "wallet-ffi"
+version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/0xMrtnz/TemplarWallet"
+publish = false
+edition = "2021"
+
+[lib]
+name = "wallet_ffi"
+crate-type = ["cdylib"]
+
+[dependencies]
+# default-features off so `--no-default-features` here really drops the USB
+# stack; the `hardware` feature below turns it back on for desktop.
+templar-core = { path = "../../crates/templar-core", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+once_cell = "1.20"
+dirs-next = "2.0"
+# Already in the tree via sled — used for the single-instance data-dir lock.
+fs2 = "0.4"
+# Wipes response buffers that carried seed/xprv material before they are freed.
+zeroize = "1"
+
+[features]
+default = ["hardware"]
+# USB hardware wallets (see templar-core). Off on Android: every hardware
+# route stays in the JSON contract but answers `HW_UNSUPPORTED`, and
+# `hwi_status` reports `hardware_supported: false` so the UI hides the flow.
+hardware = ["templar-core/hardware"]

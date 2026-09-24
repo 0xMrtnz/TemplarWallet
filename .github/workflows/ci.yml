@@ -1,0 +1,103 @@
+# The checks every change must pass: formatting, lints and tests of the Rust
+# engine (templar-core + wallet-ffi) and of the Flutter app.
+#
+# Runs on every push to main and on every pull request, forks included, and
+# release.yml calls it as the gate in front of the platform builds: a tag can
+# only become a release from a tree that passes exactly these checks.
+#
+# Nothing here is privileged. The token is read-only and no secret is used, so
+# a pull request from a fork runs with no more rights here than anywhere else.
+# Keep it that way: signing and publishing live in release.yml, which never
+# runs for a pull request.
+#
+# Third-party actions are pinned to a full commit SHA (the comment names the
+# release). To update one, resolve the new tag's commit, dereferencing an
+# annotated tag: gh api repos/<owner>/<repo>/git/ref/tags/<tag>
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# A new push to a pull request supersedes the run in progress. Pushes to main
+# (and release.yml's call) always run to the end, so every commit on main
+# keeps its own result.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Keep in step with release.yml, scripts/build_linux.sh and
+  # scripts/build_windows.ps1. Rust is pinned rather than `stable` so the lint
+  # set is fixed: a new Rust release cannot fail `-D warnings` on a tree that
+  # did not change. Bump it on purpose, after running clippy with the new one.
+  FLUTTER_VERSION: "3.44.1"
+  RUST_TOOLCHAIN: "1.95.0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The USB stack (hidapi's hidraw backend, serialport) finds devices
+      # through libudev; nothing else in Cargo.lock needs a system library.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12 (no release tags)
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          # Pull requests restore main's cache but never save their own: the
+          # repository's cache space is shared, and main is what every branch
+          # starts from.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Format
+        run: cargo fmt --all -- --check
+      # Explicit packages, not --workspace: the gate stays on the two crates
+      # that ship if others are ever added. --locked: a Cargo.lock that no
+      # longer matches the manifests fails here instead of being rewritten.
+      - name: Clippy
+        run: cargo clippy --locked -p templar-core -p wallet-ffi --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked -p templar-core -p wallet-ffi
+
+  flutter:
+    name: Flutter
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: src/templar_wallet
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      # --enforce-lockfile: pubspec.lock decides every package version, as in
+      # the release builds.
+      - name: Dependencies
+        run: flutter pub get --enforce-lockfile
+      # Infos count too: the tree is kept at zero analyzer issues of any level.
+      - name: Analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
+      - name: Tests
+        run: flutter test

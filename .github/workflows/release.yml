@@ -1,0 +1,605 @@
+# Builds Templar Wallet for every platform and, on a version tag, publishes
+# the GitHub release the website's download links point at.
+#
+#   git push origin vX.Y.Z      checks, five platform builds, one release
+#   Actions > release > Run     the same builds, as artifacts of the run
+#                               (tick "draft" to also get a draft release)
+#
+# The website links to version-less file names:
+#   https://github.com/<owner>/<repo>/releases/latest/download/<file>
+# /releases/latest skips drafts and pre-releases, so a vX.Y.Z tag publishes a
+# normal release, and only once EVERY build has succeeded: a release missing
+# one file would turn that file's link on the site into a 404 until the next
+# version. A tag with a suffix (v0.2.0-rc.1) publishes a pre-release, which
+# the site's links never see.
+#
+# Every job runs on a GitHub-hosted runner. Never attach a self-hosted runner
+# to this public repository: workflow code from a fork's pull request could
+# run on it. This workflow never runs for pull requests (ci.yml does, with no
+# secrets and a read-only token), and only the `release` job can write.
+#
+# The platform builds restore no cache: a release is compiled from Cargo.lock
+# and pubspec.lock alone, so nothing a cache entry carries can end up in a
+# published binary, or run next to the Android signing key. That costs some
+# minutes per release; the builds run in parallel.
+#
+# Third-party actions are pinned to a full commit SHA (the comment names the
+# release); see ci.yml for how to update one.
+#
+# Version bump, tagging, the signing secrets, the stable links, local builds:
+# docs/build/RELEASE.md.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: >-
+          Also create a DRAFT release from these builds. Visible to
+          maintainers only; the vX.Y.Z tag build replaces it.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # A tag build is never cancelled halfway through publishing; a new manual
+  # run on a branch replaces the one in progress.
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+env:
+  # Keep in step with ci.yml, scripts/build_linux.sh and
+  # scripts/build_windows.ps1.
+  FLUTTER_VERSION: "3.44.1"
+  RUST_TOOLCHAIN: "1.95.0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The version the file names, the installer and the release come from,
+  # checked against the tag before an hour of building: a tag vX.Y.Z must be
+  # exactly the version pubspec.yaml carries, or the installer, the app's
+  # About box and the release page would each name a different one.
+  version:
+    name: Version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      prerelease: ${{ steps.read.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: read
+        name: Read pubspec.yaml, check the tag
+        run: |
+          pubspec=src/templar_wallet/pubspec.yaml
+          line="$(grep -m1 -E '^version:' "$pubspec" || true)"
+          full="$(sed -E 's/^version:[[:space:]]*//; s/[[:space:]#].*$//' <<<"$line")"
+          version="${full%%+*}"
+          build="${full#"$version"}"
+          build="${build#+}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error file=$pubspec::no X.Y.Z version on the version: line (found '$line')"
+            exit 1
+          fi
+          if [[ ! "$build" =~ ^[0-9]+$ ]]; then
+            echo "::warning file=$pubspec::no +N build number after $version: the APKs get versionCode 1 and cannot update an install of an earlier release"
+          fi
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version $version in $pubspec (expected v$version). Delete the tag, fix whichever is wrong, tag again."
+            exit 1
+          fi
+          prerelease=false
+          [[ "$version" != *-* ]] || prerelease=true
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Templar Wallet **$version** (build ${build:-none}; pre-release: $prerelease)" >> "$GITHUB_STEP_SUMMARY"
+
+  checks:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+
+  macos:
+    name: macOS
+    needs: [version, checks]
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Flutter builds the app universal (arm64 + x86_64). The Xcode Run
+      # Script phase (src/templar_wallet/macos/copy_wallet_ffi.sh) builds
+      # libwallet_ffi.dylib once per Rust target installed on rustup's default
+      # toolchain and lipo-s the slices together, so the x86_64 target here is
+      # what gives the dylib its Intel slice. Without it an Intel Mac cannot
+      # load the engine at all.
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12 (no release tags)
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Build the app
+        working-directory: src/templar_wallet
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build macos --release
+      - name: Check both architectures are inside
+        run: |
+          app=src/templar_wallet/build/macos/Build/Products/Release/templar_wallet.app
+          for bin in "$app/Contents/MacOS/templar_wallet" "$app/Contents/Frameworks/libwallet_ffi.dylib"; do
+            archs="$(lipo -archs "$bin")"
+            echo "$(basename "$bin"): $archs"
+            if [[ " $archs " != *" arm64 "* || " $archs " != *" x86_64 "* ]]; then
+              echo "::error::$bin is not universal (it has: $archs)"
+              exit 1
+            fi
+          done
+      # Unsigned for now: docs/build/RELEASE.md, "Code signing". hdiutil on
+      # hosted Macs is known to fail now and then with "Resource busy"; a
+      # second attempt gets through.
+      - name: Package the DMG
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2 3; do
+            ./scripts/make_dmg.sh && break
+            if (( attempt == 3 )); then exit 1; fi
+            echo "::warning::make_dmg.sh failed (attempt $attempt of 3), retrying"
+            hdiutil detach "/Volumes/Templar Wallet" -force 2>/dev/null || true
+            sleep 20
+          done
+          mkdir -p out
+          mv dist/TemplarWallet-*-macos.dmg out/TemplarWallet-macos.dmg
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: TemplarWallet-macos
+          path: out/TemplarWallet-macos.dmg
+          if-no-files-found: error
+
+  android:
+    name: Android
+    needs: [version, checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      cert-sha256: ${{ steps.verify.outputs.cert-sha256 }}
+    env:
+      # A tag, or a manual run that asked for a draft release, must ship APKs
+      # signed with the release key. A plain manual run may fall back to the
+      # runner's throwaway debug key.
+      REQUIRE_RELEASE_KEY: ${{ github.ref_type == 'tag' || inputs.draft }}
+    steps:
+      # Before anything else, so a tag without the key fails in seconds.
+      - name: Check the signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} == 0 )); then
+            echo "Release signing key: configured."
+          elif (( ${#missing[@]} < 4 )); then
+            echo "::error::Android signing secrets incomplete, missing: ${missing[*]}"
+            exit 1
+          elif [[ "$REQUIRE_RELEASE_KEY" == true ]]; then
+            echo "::error::The Android signing secrets are not set, and a release never ships debug-signed APKs. See docs/build/RELEASE.md, 'The Android signing key'."
+            exit 1
+          else
+            echo "::warning::No Android signing secrets: these APKs carry this runner's throwaway debug key. For testing only: they cannot update a release install, nor be updated by one."
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12 (no release tags)
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-linux-android, x86_64-linux-android
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      # The Rust engine for both ABIs, with no secret in the environment: the
+      # build script of every crate in Cargo.lock runs in this step. The
+      # script installs what the runner lacks (NDK 28.2.13676358 through
+      # sdkmanager, cargo-ndk) and overrides the ANDROID_NDK_HOME the runner
+      # presets to a different NDK.
+      - name: Rust engine
+        run: ./scripts/build_android.sh --release --so-only
+      # The only step that sees the key: decoded into the runner's temp
+      # folder, handed to Gradle through the TEMPLAR_* variables that
+      # android/app/build.gradle.kts reads, deleted when the step ends.
+      - name: APKs
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" ]]; then
+            keystore="$RUNNER_TEMP/templar-upload.jks"
+            trap 'rm -f "$keystore"' EXIT
+            (umask 077 && printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$keystore")
+            export TEMPLAR_KEYSTORE_PATH="$keystore"
+            export TEMPLAR_KEYSTORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+            export TEMPLAR_KEY_ALIAS="$ANDROID_KEY_ALIAS"
+            export TEMPLAR_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
+          fi
+          unset ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD
+          ./scripts/build_android.sh --release --apk-only
+      # Belt and braces: whatever Gradle decided, a release APK signed with
+      # the debug key fails the job here. Both APKs must carry one and the
+      # same certificate; its SHA-256 goes into the release notes.
+      - id: verify
+        name: Check the signatures, name the files
+        run: |
+          apksigner="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)"
+          built=src/templar_wallet/build/app/outputs/flutter-apk
+          mkdir -p out
+          digests=()
+          for pair in arm64-v8a:arm64 x86_64:x86_64; do
+            abi="${pair%%:*}"
+            name="TemplarWallet-android-${pair#*:}.apk"
+            certs="$("$apksigner" verify --print-certs "$built/app-$abi-release.apk")"
+            echo "== $name"
+            echo "$certs"
+            if grep -q 'CN=Android Debug' <<<"$certs" && [[ "$REQUIRE_RELEASE_KEY" == true ]]; then
+              echo "::error::$name is signed with a debug key"
+              exit 1
+            fi
+            digests+=("$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"$certs")")
+            cp "$built/app-$abi-release.apk" "out/$name"
+          done
+          if [[ -z "${digests[0]}" || "${digests[0]}" != "${digests[1]}" ]]; then
+            echo "::error::the two APKs are not signed by one and the same certificate"
+            exit 1
+          fi
+          echo "cert-sha256=${digests[0]}" >> "$GITHUB_OUTPUT"
+          echo "Android signing certificate SHA-256: \`${digests[0]}\`" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: TemplarWallet-android
+          path: out/*.apk
+          if-no-files-found: error
+
+  linux:
+    name: Linux
+    needs: [version, checks]
+    # Pinned, never -latest: the bundle runs only where glibc is at least as
+    # new as the one it was linked against, and 22.04 (glibc 2.35) keeps it
+    # running on Ubuntu 22.04+, Debian 12+ and their generation. GitHub
+    # deprecated this image on 2026-09-17 and retires it on 2027-04-17, with
+    # brownout days (jobs fail) in March and April 2027. Before then, build on
+    # ubuntu-24.04 inside an ubuntu:22.04 container instead: the same base
+    # scripts/build_linux.sh already builds in.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Flutter's Linux desktop list, plus libudev for hidapi and serialport.
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libudev-dev
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12 (no release tags)
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Rust engine
+        run: |
+          cargo build --locked --release -p wallet-ffi
+          # Dart looks these up by name; a link that dropped one fails at launch.
+          exports="$(nm -D --defined-only target/release/libwallet_ffi.so)"
+          for sym in wallet_call wallet_free_string wallet_set_data_dir; do
+            grep -qE " T $sym\$" <<<"$exports" || { echo "::error::libwallet_ffi.so does not export $sym"; exit 1; }
+          done
+      - name: Build the app
+        working-directory: src/templar_wallet
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build linux --release
+      - name: Bundle and pack
+        run: |
+          bundle=src/templar_wallet/build/linux/x64/release/bundle
+          # The Dart loader looks for <exe dir>/lib/libwallet_ffi.so.
+          cp target/release/libwallet_ffi.so "$bundle/lib/"
+          cp docs/RELEASE_NOTES.md "$bundle/README.md"
+          # templar:// handler registration (docs/guides/PROTOCOL_CONNECTOR.md)
+          cp packaging/linux/dev.templarwallet.templar_wallet.desktop "$bundle/"
+          # Every library the app loads must resolve here: one that does not
+          # is a launch failure on every machine.
+          missing="$(cd "$bundle" && LD_LIBRARY_PATH="$PWD/lib" ldd templar_wallet lib/*.so 2>&1 | grep 'not found' || true)"
+          if [[ -n "$missing" ]]; then
+            echo "::error::unresolved libraries in the bundle"
+            echo "$missing"
+            exit 1
+          fi
+          # The newest glibc symbol anything asks for = the oldest glibc the
+          # bundle runs on.
+          glibc="$(cd "$bundle" && objdump -T templar_wallet lib/*.so | grep -o 'GLIBC_[0-9][0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -n 1)"
+          echo "Linux bundle: needs glibc $glibc or newer" >> "$GITHUB_STEP_SUMMARY"
+          # One top-level folder named like the file, whatever the version:
+          #   tar xzf TemplarWallet-linux-x64.tar.gz && ./TemplarWallet-linux-x64/templar_wallet
+          mkdir -p out
+          tar -C "$(dirname "$bundle")" --transform 's,^bundle,TemplarWallet-linux-x64,' \
+              --sort=name --owner=0 --group=0 --numeric-owner \
+              -czf out/TemplarWallet-linux-x64.tar.gz bundle
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: TemplarWallet-linux-x64
+          path: out/TemplarWallet-linux-x64.tar.gz
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    needs: [version, checks]
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12 (no release tags)
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Rust engine
+        run: cargo build --locked --release -p wallet-ffi
+      - name: Build the app
+        working-directory: src/templar_wallet
+        run: |
+          # A failing native command stops the step (pwsh otherwise carries on).
+          $PSNativeCommandUseErrorActionPreference = $true
+          flutter pub get --enforce-lockfile
+          flutter build windows --release
+      - name: Bundle and zip
+        run: |
+          $bundle = (Resolve-Path 'src/templar_wallet/build/windows/x64/runner/Release').Path
+          # The Dart loader opens wallet_ffi.dll from the exe's folder.
+          Copy-Item target/release/wallet_ffi.dll $bundle
+          Copy-Item docs/RELEASE_NOTES.md (Join-Path $bundle 'README.md')
+          $out = New-Item -ItemType Directory -Force -Path out
+          # The portable build, files at the root of the zip: Explorer's
+          # "Extract All" then gives one TemplarWallet-windows-x64 folder with
+          # templar_wallet.exe inside. .NET writes '/' separators, which every
+          # unzip tool reads.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::CreateFromDirectory($bundle,
+            (Join-Path $out.FullName 'TemplarWallet-windows-x64.zip'),
+            [IO.Compression.CompressionLevel]::Optimal, $false)
+      # Unsigned for now: docs/build/RELEASE.md, "Code signing".
+      - name: Installer (Inno Setup)
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          # The newest ISCC.exe on PATH, under either Program Files (Inno
+          # Setup 6 installs 32-bit into "Inno Setup 6", 7 is a 64-bit
+          # program with its own folder), or wherever an uninstall entry says
+          # it went. The .iss compiles with 6.3+ and with 7.
+          function Find-Iscc {
+            $found = @()
+            $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+            if ($cmd) { $found += $cmd.Source }
+            foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+              if (-not $root) { continue }
+              $found += Get-ChildItem -Path $root -Directory -Filter 'Inno Setup*' -ErrorAction SilentlyContinue |
+                ForEach-Object { Join-Path $_.FullName 'ISCC.exe' }
+            }
+            $found += Get-ChildItem -ErrorAction SilentlyContinue -Path @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+                'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall') |
+              Where-Object { $_.PSChildName -like 'Inno Setup*_is1' } |
+              ForEach-Object { $_.GetValue('InstallLocation') } |
+              Where-Object { $_ } |
+              ForEach-Object { Join-Path $_ 'ISCC.exe' }
+            $found | Where-Object { $_ -and (Test-Path -LiteralPath $_) } |
+              Sort-Object -Descending -Property {
+                $v = (Get-Item -LiteralPath $_).VersionInfo
+                [version]::new($v.FileMajorPart, $v.FileMinorPart, $v.FileBuildPart)
+              } |
+              Select-Object -First 1
+          }
+          $iscc = Find-Iscc
+          if (-not $iscc) {
+            choco install innosetup --no-progress -y
+            $iscc = Find-Iscc
+          }
+          if (-not $iscc) { throw 'Inno Setup was installed but no ISCC.exe was found' }
+          Write-Host "ISCC: $iscc ($((Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion))"
+          # /O and /F override the script's OutputDir and OutputBaseFilename:
+          # the installer lands in out\ under its stable name.
+          $out = (Resolve-Path out).Path
+          & $iscc "/DMyAppVersion=$env:VERSION" "/O$out" '/FTemplarWallet-windows-x64-setup' packaging\windows\templar-wallet.iss
+          if (-not (Test-Path -LiteralPath (Join-Path $out 'TemplarWallet-windows-x64-setup.exe'))) {
+            throw 'ISCC finished but out\TemplarWallet-windows-x64-setup.exe is missing'
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: TemplarWallet-windows-x64
+          path: |
+            out/TemplarWallet-windows-x64-setup.exe
+            out/TemplarWallet-windows-x64.zip
+          if-no-files-found: error
+
+  # Runs only when every job it needs succeeded (an `if` without a status
+  # function implies success()): one failed build, and nothing is published.
+  release:
+    name: Publish the release
+    needs: [version, macos, android, linux, windows]
+    if: github.ref_type == 'tag' || inputs.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: v${{ needs.version.outputs.version }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+      DRAFT: ${{ github.ref_type != 'tag' }}
+      CERT_SHA256: ${{ needs.android.outputs.cert-sha256 }}
+      # The website links to exactly these names. SHA256SUMS.txt is added.
+      ASSETS: >-
+        TemplarWallet-macos.dmg
+        TemplarWallet-windows-x64-setup.exe
+        TemplarWallet-windows-x64.zip
+        TemplarWallet-linux-x64.tar.gz
+        TemplarWallet-android-arm64.apk
+        TemplarWallet-android-x86_64.apk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: TemplarWallet-*
+          path: assets
+          merge-multiple: true
+      - name: Check every file is there, write SHA256SUMS.txt
+        working-directory: assets
+        run: |
+          read -ra assets <<<"$ASSETS"
+          for f in "${assets[@]}"; do
+            [[ -s "$f" ]] || { echo "::error::$f is missing or empty"; exit 1; }
+          done
+          sha256sum "${assets[@]}" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Release notes
+        run: |
+          # The body of this version's CHANGELOG.md section: everything after
+          # its heading, "## [X.Y.Z] — YYYY-MM-DD" (Keep a Changelog; plain
+          # "## X.Y.Z" and "## vX.Y.Z" match too), up to the next "## "
+          # heading. "## [X.Y.Z-rc.1]" is another version's section. The
+          # heading itself is left out: it only carries the date, and the
+          # release has its own. Trailing blank lines, rules and link
+          # definitions ("[X.Y.Z]: https://…") are trimmed.
+          section="$(awk -v ver="$VERSION" '
+            /^## / {
+              if (found) exit
+              h = substr($0, 4); sub(/^\[/, "", h); sub(/^v/, "", h)
+              rest = substr(h, length(ver) + 1); c = substr(rest, 1, 1)
+              if (index(h, ver) == 1 && (rest == "" || c == " " || c == "\t" || c == "]")) { found = 1; next }
+            }
+            found { lines[++n] = $0 }
+            END {
+              s = 1
+              while (s <= n && lines[s] ~ /^[ \t\r]*$/) s++
+              while (n >= s && (lines[n] ~ /^[ \t\r]*$/ || lines[n] ~ /^---+[ \t\r]*$/ || lines[n] ~ /^\[.*\]:[ \t]/)) n--
+              for (i = s; i <= n; i++) print lines[i]
+            }' CHANGELOG.md)"
+          if [[ -z "$section" ]]; then
+            echo "::warning file=CHANGELOG.md::no '## $VERSION' section: the release notes only link to CHANGELOG.md"
+            section="Templar Wallet $VERSION. What changed: [CHANGELOG.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$TAG/CHANGELOG.md)."
+          fi
+          releases="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases"
+          if [[ "$PRERELEASE" == true ]]; then dl="$releases/download/$TAG"; else dl="$releases/latest/download"; fi
+          {
+            if [[ "$DRAFT" == true ]]; then
+              echo "> Draft built by a manual run of release.yml from \`$GITHUB_REF_NAME\` ($GITHUB_SHA). Not the release: pushing the tag $TAG builds that, and replaces this draft."
+              echo
+            fi
+            echo "$section"
+            echo
+            echo "## Download"
+            echo
+            echo "| For | File |"
+            echo "|---|---|"
+            echo "| macOS, Apple silicon and Intel | [TemplarWallet-macos.dmg]($dl/TemplarWallet-macos.dmg) |"
+            echo "| Windows x64, installer | [TemplarWallet-windows-x64-setup.exe]($dl/TemplarWallet-windows-x64-setup.exe) |"
+            echo "| Windows x64, portable | [TemplarWallet-windows-x64.zip]($dl/TemplarWallet-windows-x64.zip) |"
+            echo "| Linux x64 | [TemplarWallet-linux-x64.tar.gz]($dl/TemplarWallet-linux-x64.tar.gz) |"
+            echo "| Android, phones | [TemplarWallet-android-arm64.apk]($dl/TemplarWallet-android-arm64.apk) |"
+            echo "| Android, emulators and x86_64 Chromebooks | [TemplarWallet-android-x86_64.apk]($dl/TemplarWallet-android-x86_64.apk) |"
+            echo "| SHA-256 of every file | [SHA256SUMS.txt]($dl/SHA256SUMS.txt) |"
+            echo
+            if [[ "$PRERELEASE" == true ]]; then
+              echo "A pre-release: these links are this version's files. The \`releases/latest/download/…\` links keep serving the newest stable release."
+            else
+              echo "These links always serve the newest release; this version's own files are listed under **Assets** below."
+            fi
+            if [[ -n "$CERT_SHA256" ]]; then
+              echo
+              echo "The APKs are signed by the certificate with SHA-256 \`$CERT_SHA256\` (check: \`apksigner verify --print-certs <file>.apk\`)."
+            fi
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+      - name: Publish
+        working-directory: assets
+        run: |
+          read -ra assets <<<"$ASSETS"
+          # A draft for this tag (an interrupted attempt, or a manual run with
+          # "draft") is replaced. A published release is never touched: its
+          # files are already on people's disks and their checksums on the web.
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate \
+            | jq -r --arg tag "$TAG" '.[] | select(.tag_name == $tag) | "\(.id) \(.draft)"')"
+          while read -r id draft; do
+            [[ -n "$id" ]] || continue
+            if [[ "$draft" != true ]]; then
+              echo "::error::$TAG is already published. Never replace a published release: bump the version and tag again."
+              exit 1
+            fi
+            echo "Deleting the earlier draft release $id for $TAG"
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done <<<"$existing"
+
+          flags=(--repo "$GITHUB_REPOSITORY" --title "Templar Wallet $VERSION" --notes-file "$RUNNER_TEMP/notes.md")
+          if [[ "$DRAFT" == true ]]; then
+            flags+=(--draft --target "$GITHUB_SHA")
+          elif [[ "$PRERELEASE" == true ]]; then
+            flags+=(--verify-tag --prerelease --latest=false)
+          else
+            flags+=(--verify-tag)
+            # The newest version is what /releases/latest, and so the site,
+            # serves. A fix for an older line, published after a newer
+            # version, must not pull the site's links back to it.
+            current="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
+            newest="$(printf '%s\n%s\n' "${current#v}" "$VERSION" | sort -V | tail -n 1)"
+            if [[ -n "$current" && "$newest" != "$VERSION" ]]; then
+              echo "::notice::$TAG is older than the current latest release $current: published without becoming the latest"
+              flags+=(--latest=false)
+            else
+              flags+=(--latest)
+            fi
+          fi
+          # With files to upload, gh creates the release as a draft, uploads
+          # every file, then publishes it; a failed upload deletes the draft.
+          # A published release therefore always has all seven files.
+          gh release create "$TAG" "${assets[@]}" SHA256SUMS.txt "${flags[@]}"
+          {
+            echo "### Templar Wallet $VERSION"
+            if [[ "$DRAFT" == true ]]; then
+              echo "Draft release created (Releases page, visible to maintainers)."
+            else
+              echo "Published: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

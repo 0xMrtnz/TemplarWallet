@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon background: the desktop badge's squircle gradient, top to
+     bottom. The launcher supplies the mask (circle, squircle, …) and only
+     shows the inner 72dp of the 108dp canvas, so there is no hairline and no
+     corner radius here — the desktop badge's 22.5% squircle is the mask's job. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="270"
+        android:startColor="#2A0C10"
+        android:centerColor="#170E10"
+        android:centerY="0.55"
+        android:endColor="#0F0A0B"/>
+</shape>
