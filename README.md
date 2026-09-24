@@ -1,13 +1,16 @@
 # Templar Wallet
 
+> [!WARNING]
+> **Alpha software, testnet only.** Templar Wallet is still in alpha: expect
+> bugs, rough edges and breaking changes between releases. Everything runs on
+> Bitcoin testnet and Liquid testnet (plus a local Liquid regtest for
+> development) and mainnet is refused by design — use free test coins only,
+> and never import a recovery phrase that holds real funds.
+
 A Bitcoin and Liquid wallet for macOS, Windows, Linux and Android, built
 around **Miniscript custody**: besides single-sig and multisig, a wallet can
 carry a real spending policy — timelocks, hashlocks, thresholds, AND/OR —
 from a template or a policy builder.
-
-> **Testnet only.** Templar Wallet runs on Bitcoin testnet and Liquid testnet
-> (plus a local Liquid regtest for development) and refuses mainnet by design.
-> Use test coins; this is a 0.x release.
 
 ## What it does
 
@@ -37,7 +40,8 @@ from a template or a policy builder.
 
 Every release is built by CI from a tagged commit and published on the
 [Releases](https://github.com/0xMrtnz/TemplarWallet/releases) page, with a
-`SHA256SUMS.txt` beside the files. The newest build is always at these links:
+`SHA256SUMS.txt` beside the files. Every build is an alpha and runs on testnet
+only. The newest build is always at these links:
 
 | Platform | File |
 |---|---|
