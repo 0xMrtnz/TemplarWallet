@@ -1953,7 +1953,7 @@ class _AboutSectionState extends State<_AboutSection> {
   }
 
   Future<void> _openSource() async {
-    final uri = Uri.parse('https://github.com/0xMrtnz/TemplarWallet');
+    final uri = Uri.parse('https://github.com/0xB4LdW1n/TemplarWallet');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -1989,7 +1989,7 @@ class _AboutSectionState extends State<_AboutSection> {
                 icon: Icons.code,
                 tint: s.inkSecondary,
                 title: 'Source code',
-                subtitle: 'github.com/0xMrtnz/TemplarWallet',
+                subtitle: 'github.com/0xB4LdW1n/TemplarWallet',
                 chevron: true,
                 onTap: _openSource,
               ),

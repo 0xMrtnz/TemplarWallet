@@ -16,7 +16,7 @@
 
 #define MyAppName "Templar Wallet"
 #define MyAppPublisher "Templar Wallet"
-#define MyAppURL "https://github.com/0xMrtnz/TemplarWallet"
+#define MyAppURL "https://github.com/0xB4LdW1n/TemplarWallet"
 #define MyAppExeName "templar_wallet.exe"
 
 #ifndef MyAppVersion

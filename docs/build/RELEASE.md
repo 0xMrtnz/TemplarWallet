@@ -96,15 +96,15 @@ published, non-pre-release version:
 
 | For | Link |
 |---|---|
-| macOS, Apple silicon and Intel | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-macos.dmg> |
-| Windows x64, installer | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64-setup.exe> |
-| Windows x64, portable | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64.zip> |
-| Linux x64 | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-linux-x64.tar.gz> |
-| Android phones (arm64) | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-android-arm64.apk> |
-| Android emulators, x86_64 Chromebooks | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-android-x86_64.apk> |
-| SHA-256 of all six | <https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/SHA256SUMS.txt> |
+| macOS, Apple silicon and Intel | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-macos.dmg> |
+| Windows x64, installer | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64-setup.exe> |
+| Windows x64, portable | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64.zip> |
+| Linux x64 | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-linux-x64.tar.gz> |
+| Android phones (arm64) | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-android-arm64.apk> |
+| Android emulators, x86_64 Chromebooks | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-android-x86_64.apk> |
+| SHA-256 of all six | <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/SHA256SUMS.txt> |
 
-The release page itself: <https://github.com/0xMrtnz/TemplarWallet/releases/latest>.
+The release page itself: <https://github.com/0xB4LdW1n/TemplarWallet/releases/latest>.
 A specific version's file: `…/releases/download/vX.Y.Z/<file>`.
 
 What is inside:
@@ -226,7 +226,7 @@ Four repository secrets (*Settings → Secrets and variables → Actions*, or
 | `ANDROID_KEY_PASSWORD` | the key password; for PKCS12, the keystore password again |
 
 ```bash
-R=0xMrtnz/TemplarWallet
+R=0xB4LdW1n/TemplarWallet
 base64 -i ~/templar-upload.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R $R   # macOS
 # Linux: base64 -w0 ~/templar-upload.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R $R
 gh secret set ANDROID_KEYSTORE_PASSWORD -R $R      # prompts for the value

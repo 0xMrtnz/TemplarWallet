@@ -39,18 +39,18 @@ from a template or a policy builder.
 ## Download
 
 Every release is built by CI from a tagged commit and published on the
-[Releases](https://github.com/0xMrtnz/TemplarWallet/releases) page, with a
+[Releases](https://github.com/0xB4LdW1n/TemplarWallet/releases) page, with a
 `SHA256SUMS.txt` beside the files. Every build is an alpha and runs on testnet
 only. The newest build is always at these links:
 
 | Platform | File |
 |---|---|
-| macOS 10.15+ (Apple Silicon and Intel) | [TemplarWallet-macos.dmg](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-macos.dmg) |
-| Windows 10/11 x64 — installer | [TemplarWallet-windows-x64-setup.exe](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64-setup.exe) |
-| Windows 10/11 x64 — portable | [TemplarWallet-windows-x64.zip](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64.zip) |
-| Linux x64 (glibc 2.35+: Ubuntu 22.04+, Debian 12+) | [TemplarWallet-linux-x64.tar.gz](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-linux-x64.tar.gz) |
-| Android 7.0+ phones (arm64) | [TemplarWallet-android-arm64.apk](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-android-arm64.apk) |
-| Android emulators / x86_64 devices | [TemplarWallet-android-x86_64.apk](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-android-x86_64.apk) |
+| macOS 10.15+ (Apple Silicon and Intel) | [TemplarWallet-macos.dmg](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-macos.dmg) |
+| Windows 10/11 x64 — installer | [TemplarWallet-windows-x64-setup.exe](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64-setup.exe) |
+| Windows 10/11 x64 — portable | [TemplarWallet-windows-x64.zip](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64.zip) |
+| Linux x64 (glibc 2.35+: Ubuntu 22.04+, Debian 12+) | [TemplarWallet-linux-x64.tar.gz](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-linux-x64.tar.gz) |
+| Android 7.0+ phones (arm64) | [TemplarWallet-android-arm64.apk](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-android-arm64.apk) |
+| Android emulators / x86_64 devices | [TemplarWallet-android-x86_64.apk](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-android-x86_64.apk) |
 
 The desktop builds are not signed with a paid certificate yet, so macOS and
 Windows warn on first launch. How to get past that, per platform:
@@ -91,7 +91,7 @@ below is not optional.
 | Flutter | **3.44.1** stable (pinned by CI; Dart SDK `^3.12.0`) |
 
 ```bash
-git clone https://github.com/0xMrtnz/TemplarWallet.git
+git clone https://github.com/0xB4LdW1n/TemplarWallet.git
 cd TemplarWallet
 ```
 

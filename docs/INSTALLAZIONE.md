@@ -27,17 +27,17 @@ di Blockstream). Non servono account, chiavi API o registrazioni.
 ## 2. Scaricare il programma
 
 Ogni versione viene compilata automaticamente da GitHub Actions e pubblicata
-nella pagina **[Releases](https://github.com/0xMrtnz/TemplarWallet/releases/latest)**,
+nella pagina **[Releases](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest)**,
 insieme a `SHA256SUMS.txt` per verificare i file. Scarica quello del tuo
 sistema:
 
 | Sistema | File |
 |---|---|
-| macOS | [`TemplarWallet-macos.dmg`](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-macos.dmg) |
-| Windows | [`TemplarWallet-windows-x64-setup.exe`](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64-setup.exe) (installer) oppure [`TemplarWallet-windows-x64.zip`](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64.zip) (portabile) |
-| Linux | [`TemplarWallet-linux-x64.tar.gz`](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-linux-x64.tar.gz) |
-| Android (telefoni) | [`TemplarWallet-android-arm64.apk`](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-android-arm64.apk) |
-| Android (emulatori) | [`TemplarWallet-android-x86_64.apk`](https://github.com/0xMrtnz/TemplarWallet/releases/latest/download/TemplarWallet-android-x86_64.apk) |
+| macOS | [`TemplarWallet-macos.dmg`](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-macos.dmg) |
+| Windows | [`TemplarWallet-windows-x64-setup.exe`](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64-setup.exe) (installer) oppure [`TemplarWallet-windows-x64.zip`](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-windows-x64.zip) (portabile) |
+| Linux | [`TemplarWallet-linux-x64.tar.gz`](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-linux-x64.tar.gz) |
+| Android (telefoni) | [`TemplarWallet-android-arm64.apk`](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-android-arm64.apk) |
+| Android (emulatori) | [`TemplarWallet-android-x86_64.apk`](https://github.com/0xB4LdW1n/TemplarWallet/releases/latest/download/TemplarWallet-android-x86_64.apk) |
 
 > Le build desktop non sono ancora firmate con un certificato a pagamento.
 > macOS e Windows mostreranno quindi un avviso al primo avvio: i passaggi qui
@@ -239,7 +239,7 @@ Per ripartire da zero: chiudi l'app ed elimina quella cartella.
 ## 10. Segnalare un problema
 
 Apri una issue su
-<https://github.com/0xMrtnz/TemplarWallet/issues> indicando: sistema operativo e
+<https://github.com/0xB4LdW1n/TemplarWallet/issues> indicando: sistema operativo e
 versione, cosa stavi facendo, cosa ti aspettavi e cosa è successo (screenshot
 benvenuti).
 

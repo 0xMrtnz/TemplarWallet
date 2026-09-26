@@ -34,7 +34,7 @@ import 'liquid_network_switch.dart';
 
 /// Where the connector is written down, for anyone who wants the protocol.
 const String kProtocolGuideUrl =
-    'https://github.com/0xMrtnz/TemplarWallet/blob/main/docs/guides/PROTOCOL_CONNECTOR.md';
+    'https://github.com/0xB4LdW1n/TemplarWallet/blob/main/docs/guides/PROTOCOL_CONNECTOR.md';
 
 class ProtocolSection extends StatefulWidget {
   const ProtocolSection({super.key, this.bridge});

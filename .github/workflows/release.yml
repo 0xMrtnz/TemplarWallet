@@ -263,7 +263,9 @@ jobs:
               echo "::error::$name is signed with a debug key"
               exit 1
             fi
-            digests+=("$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"$certs")")
+            # Older apksigner prints "Signer #1 certificate …", newer ones
+            # "V2 Signer: certificate …" (one line per scheme): take the first.
+            digests+=("$(sed -n -E 's/^(Signer #1|V[0-9.]+ Signer:) certificate SHA-256 digest: //p' <<<"$certs" | head -n 1)")
             cp "$built/app-$abi-release.apk" "out/$name"
           done
           if [[ -z "${digests[0]}" || "${digests[0]}" != "${digests[1]}" ]]; then
